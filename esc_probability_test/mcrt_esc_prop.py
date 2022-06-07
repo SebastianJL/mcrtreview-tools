@@ -178,6 +178,41 @@ def main():
     print("tau: {:.4e}, escape probability: {:.4e}".format(
         mcrt_esc_prop.tau_sphere, mcrt_esc_prop.p_esc))
 
-if __name__ == "__main__":
 
-    main()
+def reproduce_fig_3():
+    import matplotlib.pyplot as plt
+
+    tau_values_sim = np.logspace(-2, 2, 5)
+    tau_values_analytic = np.logspace(-2, 2, 200)
+    albedos = [0, 0.10, 0.50, 0.95]
+    n_packets = int(1e5)
+
+    # Simulate escape probability for a homogeneous sphere.
+    sims = {}
+    for albedo in albedos:
+        print(f"Simulating escape probability for albedo {albedo:.2f}")
+        p_esc_sim = [homogeneous_sphere_esc_abs(tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
+        sims[albedo] = p_esc_sim
+
+    # Analytical solution for albedo = 0.
+    p_esc_a = p_esc_analytic(tau_values_analytic)
+
+    fig, ax = plt.subplots()
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = iter(prop_cycle.by_key()['color'])
+    ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
+    for albedo, p_esc_sim in sims.items():
+        label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
+        ax.scatter(tau_values_sim, p_esc_sim, facecolor='none', edgecolor=next(colors), label=label)
+    ax.set_xscale('log')
+    ax.set_xlabel(r'$\tau$ total optical depth')
+    ax.set_ylabel('escape probability')
+    ax.title.set_text(f'{n_packets = :.0e}')
+    fig.suptitle('Escape probability of a homogeneous sphere')
+    plt.legend()
+    plt.show()
+
+
+if __name__ == "__main__":
+    reproduce_fig_3()
+    # main()
