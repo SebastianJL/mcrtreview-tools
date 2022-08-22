@@ -79,6 +79,7 @@ class homogeneous_sphere_esc_abs(object):
         escape probability as determined by MCRT
 
     """
+
     def __init__(self, tau, albedo=0.1, N=10000):
 
         self.RNG = random.RandomState(seed=None)
@@ -87,6 +88,7 @@ class homogeneous_sphere_esc_abs(object):
         self.albedo = albedo
 
         # initial position of packets in optical depth space
+        # question: Why are they using tau instead of r?
         self.tau_i = self.tau_sphere * (self.RNG.rand(self.N))**(1./3.)
         # initial propagation direction
         self.mu_i = 2 * self.RNG.rand(self.N) - 1.
@@ -142,8 +144,9 @@ class homogeneous_sphere_esc_abs(object):
         # optical depth to next interaction
         self.tau = -np.log(self.RNG.rand(self.N_active))
         # optical depth to sphere edge
-        self.tau_edge = np.sqrt(self.tau_sphere**2 - self.tau_i**2 *
-                                (1. - self.mu_i**2)) - self.tau_i * self.mu_i
+        # question: where does this formula come from?
+        self.tau_edge = np.sqrt(
+            self.tau_sphere**2 - self.tau_i**2*(1. - self.mu_i**2)) - self.tau_i * self.mu_i
 
         # identify packets that escape
         self.esc_mask = self.tau_edge < self.tau
@@ -167,8 +170,9 @@ class homogeneous_sphere_esc_abs(object):
 
         # update properties (position in optical depth space, propagation
         # direction) of scattering packets
-        self.tau_i = np.sqrt(self.tau_i**2 + self.tau**2 +
-                             2. * self.tau * self.tau_i * self.mu_i)
+        # question: Where does this formula come from?
+        self.tau_i = np.sqrt(self.tau_i**2 + self.tau **
+                             2 + 2. * self.tau * self.tau_i * self.mu_i)
         self.mu_i = 2 * self.RNG.rand(self.N_active) - 1.
 
 
@@ -179,7 +183,7 @@ def main():
         mcrt_esc_prop.tau_sphere, mcrt_esc_prop.p_esc))
 
 
-def reproduce_fig_3():
+def task1_reproduce_fig_3():
     import matplotlib.pyplot as plt
 
     tau_values_sim = np.logspace(-2, 2, 5)
@@ -191,7 +195,8 @@ def reproduce_fig_3():
     sims = {}
     for albedo in albedos:
         print(f"Simulating escape probability for albedo {albedo:.2f}")
-        p_esc_sim = [homogeneous_sphere_esc_abs(tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
+        p_esc_sim = [homogeneous_sphere_esc_abs(
+            tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
         sims[albedo] = p_esc_sim
 
     # Analytical solution for albedo = 0.
@@ -203,7 +208,8 @@ def reproduce_fig_3():
     ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
-        ax.scatter(tau_values_sim, p_esc_sim, facecolor='none', edgecolor=next(colors), label=label)
+        ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
+                   edgecolor=next(colors), label=label)
     ax.set_xscale('log')
     ax.set_xlabel(r'$\tau$ total optical depth')
     ax.set_ylabel('escape probability')
@@ -213,6 +219,48 @@ def reproduce_fig_3():
     plt.show()
 
 
+def task2_specific_intensity():
+    import matplotlib.pyplot as plt
+
+    n_packets = 1000
+    n_repetitions = 1000
+    albedo = 0.5
+    tau_sphere_list = np.geomspace(0.01, 100, 100)
+
+    p_esc_sim = np.array(
+        np.mean(
+            [
+                np.array([
+                    homogeneous_sphere_esc_abs(
+                        tau_sphere, albedo=albedo, N=n_packets).p_esc
+                    for tau_sphere in tau_sphere_list
+                ])
+                for _ in range(n_repetitions)
+            ], axis=0
+        )
+    )
+
+    # Choose source function
+    S = 1
+
+    # Analytical solution
+    I_ana = [S*(1-np.exp(-tau_sphere)) for tau_sphere in tau_sphere_list]
+
+    # Numeric solution
+    packet_energy = tau_sphere_list * S / n_packets
+    I_num = n_packets * p_esc_sim * packet_energy
+
+    # print(f'{I_ana = }')
+    # print(f'{I_num = }')
+
+    plt.semilogx(tau_sphere_list, I_ana)
+    plt.semilogx(tau_sphere_list, I_num)
+    plt.xlabel(r'$\tau$')
+    plt.ylabel(r'$I$')
+    plt.show()
+
+
 if __name__ == "__main__":
-    reproduce_fig_3()
     # main()
+    # task1_reproduce_fig_3()
+    task2_specific_intensity()
