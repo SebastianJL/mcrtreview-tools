@@ -366,7 +366,8 @@ def task1_esc_prob(n_packets, ax):
 
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
-    ax.plot(tau_values_analytic, p_esc_a, '-', color=next(colors), label='Analytic')
+    ax.plot(tau_values_analytic, p_esc_a, '-',
+            color=next(colors), label='Analytic')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
         color = next(colors)
@@ -442,7 +443,8 @@ def task3_esc_prob_non_homogeneous_sphere(n_packets, ax):
 
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
-    ax.plot(tau_values_analytic, p_esc_a, '-', color=next(colors), label=r'Analytic $\rho = 1$')
+    ax.plot(tau_values_analytic, p_esc_a, '-',
+            color=next(colors), label=r'Analytic $\rho = 1$')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
         color = next(colors)
