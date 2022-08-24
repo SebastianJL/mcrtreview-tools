@@ -28,7 +28,8 @@ MCRT review.
 from __future__ import print_function
 import numpy as np
 import numpy.random as random
-
+import logging as log
+log.basicConfig(level=log.INFO)
 
 def p_esc_analytic(t):
     """Calculate the escape probability analytically
@@ -177,9 +178,11 @@ class homogeneous_sphere_esc_abs(object):
 
 
 class non_homogeneous_sphere_esc_abs(object):
-    """Homogeneous Sphere class
+    """Non-Homogeneous Sphere class
 
-    This class defines a homogeneous sphere with a specified total optical
+    Matter density: rho(r) = m0 / (r + epsilon)**2
+
+    This class defines a sphere with a non homogenous matter distribution and a specified total optical
     depth and performs a simple MCRT simulation to determine the escape
     probability. This is done automatically during the initialization step. The
     escape probability can be accessed via the class attribute p_esc. The
@@ -187,13 +190,18 @@ class non_homogeneous_sphere_esc_abs(object):
     parameter describes the scattering probability with respect to the total
     (i.e. scattering + absorption) interaction probability.
 
-    Note: the analytic prediction p_esc_analytic only applies for albedo = 0,
+    Note: the analytic prediction p_esc_analytic_non_homogenous only applies for albedo = 0,
     i.e. in the absence of scattering
+
+    Note: Since we are defining tau_sphere instead of r_sphere the mass constant m_0 has no impact on the final result.
+    It is only added for completeness.
 
     Parameters
     ----------
-    tau : float
+    tau_sphere : float
         total optical depth of the homogeneous sphere
+    epsilon : float
+        Smoothing parameter avoiding matter singularity at center of sphere.
     albedo : float
         ratio of scattering to total interaction probability (default 0.1)
     N : int
@@ -206,16 +214,19 @@ class non_homogeneous_sphere_esc_abs(object):
 
     """
 
-    def __init__(self, tau, albedo=0.1, N=10000):
+    def __init__(self, tau_sphere, epsilon=1e-5, albedo=0.1, N=10000):
 
         self.RNG = random.RandomState(seed=None)
         self.N = N
-        self.tau_sphere = tau
+        self.epsilon = epsilon
+        # The choice of m0 is arbitrary since we only define tau this only changes the radius of the sphere but not the physics in tau space.
+        self.m0 = 1 
+        self.r_sphere = self._radius_at_optical_depth(tau_sphere)
         self.albedo = albedo
 
-        # initial position of packets in optical depth space
-        # question: Why are they using tau instead of r?
-        self.tau_i = self.tau_sphere * (self.RNG.rand(self.N))**(1./3.)
+        # initial distance of photon packet from center of sphere.
+        # Homogeneous distribution:
+        self.r_i = self.r_sphere * (self.RNG.rand(self.N))**(1./3.)
         # initial propagation direction
         self.mu_i = 2 * self.RNG.rand(self.N) - 1.
 
@@ -227,6 +238,18 @@ class non_homogeneous_sphere_esc_abs(object):
         # perform propagation
         self._propagated = False
         self._propagate()
+
+    def _optical_depth_at_radius(self, r):
+        eps = self.epsilon
+        m0 = self.m0
+        return m0*r / (eps*(r + eps))
+    
+
+    def _radius_at_optical_depth(self, tau):
+        eps = self.epsilon
+        m0 = self.m0
+        tau = tau / m0
+        return -tau * eps**2 / (tau*eps - 1)
 
     @property
     def p_esc(self):
@@ -269,13 +292,22 @@ class non_homogeneous_sphere_esc_abs(object):
 
         # optical depth to next interaction
         self.tau = -np.log(self.RNG.rand(self.N_active))
-        # optical depth to sphere edge
-        # question: where does this formula come from?
-        self.tau_edge = np.sqrt(
-            self.tau_sphere**2 - self.tau_i**2*(1. - self.mu_i**2)) - self.tau_i * self.mu_i
+
+        # distance in real space corresponding to optical depth
+        va = self.r_i
+        eps = self.epsilon
+        tau = self.tau
+        mu = self.mu_i
+        m0 = self.m0
+        vb = -(m0*va + va*eps*tau-eps**2*tau) / (-m0 + va*tau + eps*tau)
+        self.dl = -va*mu + np.sqrt(-va**2 + vb**2 + va**2*mu**2)
+
+        # Distance to sphere edge
+        self.r_edge = np.sqrt(
+            self.r_sphere**2 - self.r_i**2*(1. - self.mu_i**2)) - self.r_i * self.mu_i
 
         # identify packets that escape
-        self.esc_mask = self.tau_edge < self.tau
+        self.esc_mask = self.r_edge < self.dl
         # update number of escaping packets
         self.N_esc += self.esc_mask.sum()
 
@@ -287,8 +319,8 @@ class non_homogeneous_sphere_esc_abs(object):
         self.scat_mask = np.logical_not(self.abs_mask)
 
         # select properties of scattering packets
-        self.tau = self.tau[self.nesc_mask][self.scat_mask]
-        self.tau_i = self.tau_i[self.nesc_mask][self.scat_mask]
+        self.dl = self.dl[self.nesc_mask][self.scat_mask]
+        self.r_i = self.r_i[self.nesc_mask][self.scat_mask]
         self.mu_i = self.mu_i[self.nesc_mask][self.scat_mask]
 
         # update number of active packets
@@ -297,9 +329,12 @@ class non_homogeneous_sphere_esc_abs(object):
         # update properties (position in optical depth space, propagation
         # direction) of scattering packets
         # question: Where does this formula come from?
-        self.tau_i = np.sqrt(self.tau_i**2 + self.tau **
-                             2 + 2. * self.tau * self.tau_i * self.mu_i)
+        self.r_i = np.sqrt(self.r_i**2 + self.dl **
+                           2 + 2. * self.dl * self.r_i * self.mu_i)
         self.mu_i = 2 * self.RNG.rand(self.N_active) - 1.
+        log.info(f'{self.p_esc = }')
+        log.info(f'{self.N_esc = }')
+        log.info(f'{self.N = }')
 
 
 def main():
@@ -337,7 +372,7 @@ def task1_reproduce_fig_3():
         ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
                    edgecolor=next(colors), label=label)
     ax.set_xscale('log')
-    ax.set_xlabel(r'$\tau$ total optical depth')
+    ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel('escape probability')
     ax.title.set_text(f'{n_packets = :.0e}')
     fig.suptitle('Escape probability of a homogeneous sphere')
@@ -348,9 +383,9 @@ def task1_reproduce_fig_3():
 def task2_specific_intensity():
     import matplotlib.pyplot as plt
 
-    n_packets = 1000
-    n_repetitions = 1000
-    albedo = 0.5
+    n_packets = int(1e5)
+    n_repetitions = 1
+    albedo = 0
     tau_sphere_list = np.geomspace(0.01, 100, 100)
 
     p_esc_sim = np.array(
@@ -376,23 +411,56 @@ def task2_specific_intensity():
     packet_energy = tau_sphere_list * S / n_packets
     I_num = n_packets * p_esc_sim * packet_energy
 
-    # print(f'{I_ana = }')
-    # print(f'{I_num = }')
-
-    plt.semilogx(tau_sphere_list, I_ana)
-    plt.semilogx(tau_sphere_list, I_num)
-    plt.xlabel(r'$\tau$')
-    plt.ylabel(r'$I$')
+    fig, ax = plt.subplots()
+    ax.semilogx(tau_sphere_list, I_ana, label='analytic')
+    ax.semilogx(tau_sphere_list, I_num, label=fr'{albedo = }')
+    ax.set_xlabel(r'$\tau_{sphere}$')
+    ax.set_ylabel(r'$I_\nu(\tau_{sphere})$')
+    ax.title.set_text(f'{n_packets = :.0e}')
+    plt.legend()
     plt.show()
 
 
-def task3_non_homogenuous_matter_density():
-    pass
+def task3_non_homogeneous_sphere():
+    import matplotlib.pyplot as plt
+
+    tau_values_sim = np.logspace(-2, 2, 10)
+    tau_values_analytic = np.logspace(-2, 2, 200)
+    albedos = [0, 0.10, 0.50, 0.95]
+    n_packets = int(1e5)
+
+    # Simulate escape probability for a non-homogeneous sphere.
+    sims = {}
+    for albedo in albedos:
+        print(f"Simulating escape probability for albedo {albedo:.2f}")
+        p_esc_sim = [non_homogeneous_sphere_esc_abs(
+            tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
+        sims[albedo] = p_esc_sim
+
+    log.info(f'{sims = }')
+
+    # Analytical solution for albedo = 0.
+    p_esc_a = p_esc_analytic(tau_values_analytic)
+
+    fig, ax = plt.subplots()
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = iter(prop_cycle.by_key()['color'])
+    ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
+    for albedo, p_esc_sim in sims.items():
+        label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
+        ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
+                   edgecolor=next(colors), label=label)
+    ax.set_xscale('log')
+    ax.set_xlabel(r'$\tau_{sphere}$')
+    ax.set_ylabel('escape probability')
+    ax.title.set_text(f'{n_packets = :.0e}')
+    fig.suptitle('Escape probability of a non-homogeneous sphere')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
     # main()
     # task1_reproduce_fig_3()
     # task2_specific_intensity()
-    task3_non_homogenuous_matter_density()
-
+    task3_non_homogeneous_sphere()
