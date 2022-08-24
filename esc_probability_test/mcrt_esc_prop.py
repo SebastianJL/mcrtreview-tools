@@ -366,11 +366,13 @@ def task1_esc_prob(n_packets, ax):
 
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
-    ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
+    ax.plot(tau_values_analytic, p_esc_a, '-', color=next(colors), label='Analytic')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
+        color = next(colors)
         ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
-                   edgecolor=next(colors), label=label)
+                   edgecolor=color, label=label)
+        ax.semilogx(tau_values_sim, p_esc_sim, '--', color=color)
     ax.set_xscale('log')
     ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel('escape probability')
@@ -382,30 +384,37 @@ def task2_specific_intensity(n_packets, ax):
     n_repetitions = 1
     albedo = 0
     tau_sphere_list = np.logspace(-2, 2, 100)
-    multiple_sims = [
-        [
-            homogeneous_sphere_esc_abs(
-                tau_sphere, albedo=albedo, N=n_packets).p_esc
-            for tau_sphere in tau_sphere_list
+    albedos = [0, 0.10, 0.50, 0.95]
+
+    sims = {}
+    for albedo in albedos:
+        print(f"Simulating escape probability for albedo {albedo:.2f}")
+        multiple_sims = [
+            [
+                homogeneous_sphere_esc_abs(
+                    tau_sphere, albedo=albedo, N=n_packets).p_esc
+                for tau_sphere in tau_sphere_list
+            ]
+            for _ in range(n_repetitions)
         ]
-        for _ in range(n_repetitions)
-    ]
-    p_esc_sim = np.mean(multiple_sims, axis=0)
+        p_esc_sim = np.mean(multiple_sims, axis=0)
+        sims[albedo] = p_esc_sim
 
     # Choose source function
     S = 1
 
     # Analytical solution
     I_ana = [S*(1-np.exp(-tau_sphere)) for tau_sphere in tau_sphere_list]
+    ax.semilogx(tau_sphere_list, I_ana, '-', label='analytic')
 
     # Numeric solution
-    packet_energy = tau_sphere_list * S / n_packets
-    I_num = n_packets * p_esc_sim * packet_energy
+    for albedo, p_esc_sim in sims.items():
+        packet_energy = tau_sphere_list * S / n_packets
+        I_num = n_packets * p_esc_sim * packet_energy
 
-    ax.semilogx(tau_sphere_list, I_ana, '-', label='analytic')
-    ax.semilogx(tau_sphere_list, I_num, '.--', label=fr'{albedo = }')
-    ax.set_xlabel(r'$\tau_{sphere}$')
-    ax.set_ylabel(r'$I_\nu(\tau_{sphere})$')
+        ax.semilogx(tau_sphere_list, I_num, '.--', label=fr'{albedo = }')
+        ax.set_xlabel(r'$\tau_{sphere}$')
+        ax.set_ylabel(r'$I_\nu(\tau_{sphere})$')
     ax.legend()
 
 
@@ -433,19 +442,54 @@ def task3_esc_prob_non_homogeneous_sphere(n_packets, ax):
 
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
-    ax.plot(tau_values_analytic, p_esc_a, '-', label=r'Analytic $\rho = 1$')
+    ax.plot(tau_values_analytic, p_esc_a, '-', color=next(colors), label=r'Analytic $\rho = 1$')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
+        color = next(colors)
         ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
-                   edgecolor=next(colors), label=label)
-    ax.set_xscale('log')
-    ax.set_xlabel(r'$\tau_{sphere}$')
+                   edgecolor=color, label=label)
+        ax.semilogx(tau_values_sim, p_esc_sim, '--', color=color)
     ax.set_ylabel('escape probability')
     ax.legend()
 
 
 def task3_non_homogeneous_sphere_specific_intensity(n_packets, ax):
-    pass
+
+    n_repetitions = 1
+    albedo = 0
+    tau_sphere_list = np.logspace(-2, 2, 100)
+    albedos = [0, 0.10, 0.50, 0.95]
+
+    sims = {}
+    for albedo in albedos:
+        print(f"Simulating escape probability for albedo {albedo:.2f}")
+        multiple_sims = [
+            [
+                non_homogeneous_sphere_esc_abs(
+                    tau_sphere, albedo=albedo, N=n_packets).p_esc
+                for tau_sphere in tau_sphere_list
+            ]
+            for _ in range(n_repetitions)
+        ]
+        p_esc_sim = np.mean(multiple_sims, axis=0)
+        sims[albedo] = p_esc_sim
+
+    # Choose source function
+    S = 1
+
+    # Analytical solution
+    I_ana = [S*(1-np.exp(-tau_sphere)) for tau_sphere in tau_sphere_list]
+    ax.semilogx(tau_sphere_list, I_ana, '-', label='analytic')
+
+    # Numeric solution
+    for albedo, p_esc_sim in sims.items():
+        packet_energy = tau_sphere_list * S / n_packets
+        I_num = n_packets * p_esc_sim * packet_energy
+
+        ax.semilogx(tau_sphere_list, I_num, '.--', label=fr'{albedo = }')
+        ax.set_xlabel(r'$\tau_{sphere}$')
+        ax.set_ylabel(r'$I_\nu(\tau_{sphere})$')
+    ax.legend()
 
 
 if __name__ == "__main__":
@@ -459,13 +503,12 @@ if __name__ == "__main__":
     fig1.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
     ax1.title.set_text(r"$\rho = 1$")
     ax2.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
-    plt.show()
 
     # Specific intensities
-    # fig2, (ax3, ax4) = plt.subplots(1, 2)
-    # task2_specific_intensity(n_packets, ax3)
-    # task3_non_homogeneous_sphere_specific_intensity(n_packets, ax4)
-    # fig2.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
-    # ax3.title.set_text(r"$\rho = 1$")
-    # ax4.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
-    # plt.show()
+    fig2, (ax3, ax4) = plt.subplots(1, 2)
+    task2_specific_intensity(n_packets, ax3)
+    task3_non_homogeneous_sphere_specific_intensity(n_packets, ax4)
+    fig2.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
+    ax3.title.set_text(r"$\rho = 1$")
+    ax4.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
+    plt.show()
