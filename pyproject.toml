@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "mcrtreview-tools"
+version = "0.1.0"
+description = "Different monte carlo simulations."
+authors = ["SebastianJL <johannes.lade@yahoo.com>"]
+readme = "README.md"
+packages = [{include = "mcrtreview_tools"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.23.2"
+matplotlib = "^3.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
