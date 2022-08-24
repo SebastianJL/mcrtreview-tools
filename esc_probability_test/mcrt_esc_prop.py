@@ -29,7 +29,8 @@ from __future__ import print_function
 import numpy as np
 import numpy.random as random
 import logging as log
-log.basicConfig(level=log.INFO)
+log.basicConfig(level=log.WARNING)
+
 
 def p_esc_analytic(t):
     """Calculate the escape probability analytically
@@ -220,7 +221,7 @@ class non_homogeneous_sphere_esc_abs(object):
         self.N = N
         self.epsilon = epsilon
         # The choice of m0 is arbitrary since we only define tau this only changes the radius of the sphere but not the physics in tau space.
-        self.m0 = 1 
+        self.m0 = 1
         self.r_sphere = self._radius_at_optical_depth(tau_sphere)
         self.albedo = albedo
 
@@ -243,7 +244,6 @@ class non_homogeneous_sphere_esc_abs(object):
         eps = self.epsilon
         m0 = self.m0
         return m0*r / (eps*(r + eps))
-    
 
     def _radius_at_optical_depth(self, tau):
         eps = self.epsilon
@@ -344,26 +344,26 @@ def main():
         mcrt_esc_prop.tau_sphere, mcrt_esc_prop.p_esc))
 
 
-def task1_reproduce_fig_3():
-    import matplotlib.pyplot as plt
+def task1_esc_prob(n_packets, ax):
 
     tau_values_sim = np.logspace(-2, 2, 5)
     tau_values_analytic = np.logspace(-2, 2, 200)
     albedos = [0, 0.10, 0.50, 0.95]
-    n_packets = int(1e5)
 
     # Simulate escape probability for a homogeneous sphere.
     sims = {}
     for albedo in albedos:
         print(f"Simulating escape probability for albedo {albedo:.2f}")
-        p_esc_sim = [homogeneous_sphere_esc_abs(
-            tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
+        p_esc_sim = [
+            homogeneous_sphere_esc_abs(
+                tau_value, albedo=albedo, N=n_packets).p_esc
+            for tau_value in tau_values_sim
+        ]
         sims[albedo] = p_esc_sim
 
     # Analytical solution for albedo = 0.
     p_esc_a = p_esc_analytic(tau_values_analytic)
 
-    fig, ax = plt.subplots()
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
     ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
@@ -374,32 +374,23 @@ def task1_reproduce_fig_3():
     ax.set_xscale('log')
     ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel('escape probability')
-    ax.title.set_text(f'{n_packets = :.0e}')
-    fig.suptitle('Escape probability of a homogeneous sphere')
-    plt.legend()
-    plt.show()
+    ax.legend()
 
 
-def task2_specific_intensity():
-    import matplotlib.pyplot as plt
+def task2_specific_intensity(n_packets, ax):
 
-    n_packets = int(1e5)
     n_repetitions = 1
     albedo = 0
-    tau_sphere_list = np.geomspace(0.01, 100, 100)
-
-    p_esc_sim = np.array(
-        np.mean(
-            [
-                np.array([
-                    homogeneous_sphere_esc_abs(
-                        tau_sphere, albedo=albedo, N=n_packets).p_esc
-                    for tau_sphere in tau_sphere_list
-                ])
-                for _ in range(n_repetitions)
-            ], axis=0
-        )
-    )
+    tau_sphere_list = np.logspace(-2, 2, 100)
+    multiple_sims = [
+        [
+            homogeneous_sphere_esc_abs(
+                tau_sphere, albedo=albedo, N=n_packets).p_esc
+            for tau_sphere in tau_sphere_list
+        ]
+        for _ in range(n_repetitions)
+    ]
+    p_esc_sim = np.mean(multiple_sims, axis=0)
 
     # Choose source function
     S = 1
@@ -411,30 +402,28 @@ def task2_specific_intensity():
     packet_energy = tau_sphere_list * S / n_packets
     I_num = n_packets * p_esc_sim * packet_energy
 
-    fig, ax = plt.subplots()
-    ax.semilogx(tau_sphere_list, I_ana, label='analytic')
-    ax.semilogx(tau_sphere_list, I_num, label=fr'{albedo = }')
+    ax.semilogx(tau_sphere_list, I_ana, '-', label='analytic')
+    ax.semilogx(tau_sphere_list, I_num, '.--', label=fr'{albedo = }')
     ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel(r'$I_\nu(\tau_{sphere})$')
-    ax.title.set_text(f'{n_packets = :.0e}')
-    plt.legend()
-    plt.show()
+    ax.legend()
 
 
-def task3_non_homogeneous_sphere():
-    import matplotlib.pyplot as plt
+def task3_esc_prob_non_homogeneous_sphere(n_packets, ax):
 
     tau_values_sim = np.logspace(-2, 2, 10)
     tau_values_analytic = np.logspace(-2, 2, 200)
     albedos = [0, 0.10, 0.50, 0.95]
-    n_packets = int(1e5)
 
     # Simulate escape probability for a non-homogeneous sphere.
     sims = {}
     for albedo in albedos:
         print(f"Simulating escape probability for albedo {albedo:.2f}")
-        p_esc_sim = [non_homogeneous_sphere_esc_abs(
-            tau_value, albedo=albedo, N=n_packets).p_esc for tau_value in tau_values_sim]
+        p_esc_sim = [
+            non_homogeneous_sphere_esc_abs(
+                tau_value, albedo=albedo, N=n_packets).p_esc
+            for tau_value in tau_values_sim
+        ]
         sims[albedo] = p_esc_sim
 
     log.info(f'{sims = }')
@@ -442,10 +431,9 @@ def task3_non_homogeneous_sphere():
     # Analytical solution for albedo = 0.
     p_esc_a = p_esc_analytic(tau_values_analytic)
 
-    fig, ax = plt.subplots()
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors = iter(prop_cycle.by_key()['color'])
-    ax.plot(tau_values_analytic, p_esc_a, '-', label='Analytic')
+    ax.plot(tau_values_analytic, p_esc_a, '-', label=r'Analytic $\rho = 1$')
     for albedo, p_esc_sim in sims.items():
         label = fr'$\chi_S / \chi_{{tot}} = {albedo}$'
         ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
@@ -453,14 +441,31 @@ def task3_non_homogeneous_sphere():
     ax.set_xscale('log')
     ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel('escape probability')
-    ax.title.set_text(f'{n_packets = :.0e}')
-    fig.suptitle('Escape probability of a non-homogeneous sphere')
-    plt.legend()
-    plt.show()
+    ax.legend()
+
+
+def task3_non_homogeneous_sphere_specific_intensity(n_packets, ax):
+    pass
 
 
 if __name__ == "__main__":
-    # main()
-    # task1_reproduce_fig_3()
-    # task2_specific_intensity()
-    task3_non_homogeneous_sphere()
+    import matplotlib.pyplot as plt
+    n_packets = int(1e5)
+
+    # Escape probabilities
+    fig1, (ax1, ax2) = plt.subplots(1, 2)
+    task1_esc_prob(n_packets, ax1)
+    task3_esc_prob_non_homogeneous_sphere(n_packets, ax2)
+    fig1.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
+    ax1.title.set_text(r"$\rho = 1$")
+    ax2.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
+    plt.show()
+
+    # Specific intensities
+    # fig2, (ax3, ax4) = plt.subplots(1, 2)
+    # task2_specific_intensity(n_packets, ax3)
+    # task3_non_homogeneous_sphere_specific_intensity(n_packets, ax4)
+    # fig2.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
+    # ax3.title.set_text(r"$\rho = 1$")
+    # ax4.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
+    # plt.show()
