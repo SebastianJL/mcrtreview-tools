@@ -346,7 +346,7 @@ def main():
 
 def task1_esc_prob(n_packets, ax):
 
-    tau_values_sim = np.logspace(-2, 2, 5)
+    tau_values_sim = np.logspace(-2, 2, 10)
     tau_values_analytic = np.logspace(-2, 2, 200)
     albedos = [0, 0.10, 0.50, 0.95]
 
@@ -451,6 +451,7 @@ def task3_esc_prob_non_homogeneous_sphere(n_packets, ax):
         ax.scatter(tau_values_sim, p_esc_sim, facecolor='none',
                    edgecolor=color, label=label)
         ax.semilogx(tau_values_sim, p_esc_sim, '--', color=color)
+    ax.set_xlabel(r'$\tau_{sphere}$')
     ax.set_ylabel('escape probability')
     ax.legend()
 
@@ -498,19 +499,20 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     n_packets = int(1e5)
 
-    # Escape probabilities
-    fig1, (ax1, ax2) = plt.subplots(1, 2)
-    task1_esc_prob(n_packets, ax1)
-    task3_esc_prob_non_homogeneous_sphere(n_packets, ax2)
-    fig1.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
-    ax1.title.set_text(r"$\rho = 1$")
-    ax2.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
+    with plt.style.context('seaborn-talk'):
+        # Escape probabilities
+        fig1, (ax1, ax2) = plt.subplots(1, 2)
+        task1_esc_prob(n_packets, ax1)
+        task3_esc_prob_non_homogeneous_sphere(n_packets, ax2)
+        fig1.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
+        ax1.title.set_text(r"$\rho = 1$")
+        ax2.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
 
-    # Specific intensities
-    fig2, (ax3, ax4) = plt.subplots(1, 2)
-    task2_specific_intensity(n_packets, ax3)
-    task3_non_homogeneous_sphere_specific_intensity(n_packets, ax4)
-    fig2.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
-    ax3.title.set_text(r"$\rho = 1$")
-    ax4.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
-    plt.show()
+        # Specific intensities
+        fig2, (ax3, ax4) = plt.subplots(1, 2)
+        task2_specific_intensity(n_packets, ax3)
+        task3_non_homogeneous_sphere_specific_intensity(n_packets, ax4)
+        fig2.suptitle(f"Homogeneous photon distr, {n_packets:.0e} packets.")
+        ax3.title.set_text(r"$\rho = 1$")
+        ax4.title.set_text(r"$\rho = 1/(r+\epsilon)^2$")
+        plt.show()
