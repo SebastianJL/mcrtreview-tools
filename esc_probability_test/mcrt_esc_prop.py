@@ -28,6 +28,7 @@ MCRT review.
 from __future__ import print_function
 import numpy as np
 import numpy.random as random
+# from pynverse import inversefunc
 import logging as log
 log.basicConfig(level=log.WARNING)
 
@@ -228,6 +229,10 @@ class non_homogeneous_sphere_esc_abs(object):
         # initial distance of photon packet from center of sphere.
         # Homogeneous distribution:
         self.r_i = self.r_sphere * (self.RNG.rand(self.N))**(1./3.)
+        # Inhomogenous distribution:
+        # inv_cdf = self._initialize_inverse_cdf()
+        # self.r_i = inv_cdf(self.RNG.rand(self.N))
+
         # initial propagation direction
         self.mu_i = 2 * self.RNG.rand(self.N) - 1.
 
@@ -250,6 +255,30 @@ class non_homogeneous_sphere_esc_abs(object):
         m0 = self.m0
         tau = tau / m0
         return -tau * eps**2 / (tau*eps - 1)
+
+    def _initialize_inverse_cdf(self):
+        """Returns the inverse of the commulative distribution function.
+
+        This function inverts the cdf of the photon packet distribution
+        numerically to sample r from a random number.
+        f(r) = 1 / (r+eps)**2
+        F(r) = F(r)-F(0) = r*(r + 2*eps)/(r + eps) + 2*eps*log(eps/(r + eps))
+        r = F^-1(rand)
+        """
+        eps = self.epsilon
+
+        def cdf(r):
+            return r*(r + 2*eps)/(r + eps) + 2*eps*np.log(eps/(r + eps))
+        # Normalization constant
+        c = cdf(self.r_sphere)
+
+        breakpoint()
+        inv_cdf = inversefunc(
+            lambda r: cdf(r)/c,
+            domain=(0, self.r_sphere),
+            open_domain=(False, False)
+        )
+        return inv_cdf
 
     @property
     def p_esc(self):
